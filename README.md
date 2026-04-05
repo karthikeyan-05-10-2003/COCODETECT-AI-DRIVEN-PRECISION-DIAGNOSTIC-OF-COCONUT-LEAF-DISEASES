@@ -1,0 +1,2 @@
+# COCODETECT-AI-DRIVEN-PRECISION-DIAGNOSTIC-OF-COCONUT-LEAF-DISEASES
+Coconut farming faces diseases like Leaf Spot and Root Wilt, affecting yield. This web-based system uses the Inception V3 deep learning model to detect leaf diseases from uploaded images. It provides real-time diagnosis, treatment suggestions, and uses Explainable AI for transparency, helping farmers take quick and accurate decisions.

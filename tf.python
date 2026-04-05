@@ -1,0 +1,153 @@
+import numpy as np 
+import time 
+import PIL.Image as Image 
+import matplotlib.pylab as plt 
+import matplotlib.image as mpimg 
+%matplotlib inline 
+import datetime 
+from tqdm.keras import TqdmCallback 
+from skimage import transform 
+import requests 
+# tensorflow libraries 
+import tensorflow as tf 
+import tensorflow_hub as hub 
+train_path = '/content/drive/MyDrive/Plantdisease' 
+# define some variables 
+batch_size = 32 
+img_height = 300 # reduced from 600 to mitigate the memory issue 
+img_width = 300 # reduced from 600 to mitigate the memory issue 
+seed_train_validation = 1 
+shuffle_value = True 
+validation_split = 0.4 
+# load training images 
+train_ds = tf.keras.utils.image_dataset_from_directory( 
+train_path, 
+validation_split=validation_split,
+subset="training", 
+image_size=(img_height, img_width), 
+batch_size=batch_size, 
+seed = seed_train_validation, 
+shuffle = shuffle_value ) 
+# load validation images 
+val_ds = tf.keras.utils.image_dataset_from_directory( 
+train_path, 
+validation_split=validation_split, 
+subset="validation", 
+image_size=(img_height, img_width), 
+batch_size=batch_size, 
+seed = seed_train_validation, 
+shuffle = shuffle_value ) 
+class_names = train_ds.class_names 
+# cleaning the class names 
+class_names = [x.split('_')[1] for x in class_names] 
+# view class names 
+print("the target classes are: ",*class_names, sep =" ,") 
+# rescaling the images for the model 
+'''TensorFlow Hub's convention for image models is to expect float inputs in the [0, 1] range''' 
+normalization_layer = tf.keras.layers.Rescaling(1./255) 
+train_ds = train_ds.map(lambda x, y: (normalization_layer(x), y)) # Where x—images, y—labels. 
+val_ds = val_ds.map(lambda x, y: (normalization_layer(x), y)) # Where x—images, y—labels. 
+'''finish the input pipeline by using buffered prefetching with Dataset.prefetch, so you can yield the 
+data from disk without I/O blocking issues.''' 
+AUTOTUNE = tf.data.AUTOTUNE 
+train_ds = train_ds.cache().prefetch(buffer_size=AUTOTUNE) 
+val_ds = val_ds.cache().prefetch(buffer_size=AUTOTUNE) 
+import tensorflow as tf 
+from tensorflow.keras.applications import InceptionV3 
+# Load the InceptionV3 model as a feature extractor 
+feature_extractor_model = InceptionV3(weights='imagenet', include_top=False, pooling='avg')
+# feature extraction layer 
+'''Create the feature extractor by wrapping the pre-trained model as a Keras layer with 
+hub.KerasLayer. Use the trainable=False argument to freeze the variables, so that the training only 
+modifies the new classifier layer''' 
+feature_extractor_layer = hub.KerasLayer( 
+feature_extractor_model, 
+input_shape=(img_width, img_height, 3), 
+trainable=False) 
+import tensorflow as tf 
+import tensorflow_hub as hub 
+from tensorflow.keras.applications import InceptionV3 
+from tensorflow.keras import layers 
+# Load the InceptionV3 model as a feature extractor 
+feature_extractor_model = InceptionV3(weights='imagenet', include_top=False, pooling='avg') 
+# Create the feature extractor layer 
+feature_extractor_layer = hub.KerasLayer( 
+feature_extractor_model, 
+input_shape=(img_width, img_height, 3), 
+trainable=False 
+) 
+# Define the input layer explicitly 
+input_tensor = tf.keras.Input(shape=(img_width, img_height, 3)) 
+# Pass the input tensor to the feature extractor layer 
+x = feature_extractor_layer(input_tensor) 
+# Add the classification layer 
+num_classes = len(class_names) 
+output_tensor = tf.keras.layers.Dense(num_classes, activation='softmax')(x) 
+# Create the model 
+model = tf.keras.Model(inputs=input_tensor, outputs=output_tensor) 
+import tensorflow as tf 
+from tensorflow.keras.preprocessing.image import ImageDataGenerator 
+from tensorflow.keras.models import Model
+from tensorflow.keras.applications import InceptionV3 
+from tensorflow.keras.layers import Dense, Dropout, GlobalAveragePooling2D 
+# Directories for training and validation datasets 
+train_dir = '/content/drive/MyDrive/Plantdisease' 
+validation_dir = '/content/drive/MyDrive/test' 
+train_datagen = ImageDataGenerator( 
+rescale=1.0/255.0, 
+rotation_range=20, 
+shear_range=0.2, 
+zoom_range=0.2, 
+horizontal_flip=True, 
+width_shift_range=0.2, 
+height_shift_range=0.2, 
+#shear_range=0.2, #Already defined above, removing to avoid redundancy 
+#zoom_range=0.2, #Already defined above, removing to avoid redundancy 
+#horizontal_flip=True, #Already defined above, removing to avoid redundancy 
+fill_mode='nearest' 
+) 
+validation_datagen = ImageDataGenerator(rescale=1.0/255.0) 
+# Load images from directory and apply augmentations 
+train_generator = train_datagen.flow_from_directory( 
+train_dir, 
+target_size=(299, 299), # InceptionV3 expects 299x299 images 
+batch_size=32, 
+class_mode='binary' # Use 'categorical' if more than 2 classes 
+) 
+validation_generator = validation_datagen.flow_from_directory( 
+validation_dir, 
+target_size=(299, 299), 
+batch_size=32, 
+class_mode='binary' # Use 'categorical' if more than 2 classes 
+) 
+# Load InceptionV3 model as a feature extractor, freezing its weights 
+inception_model = InceptionV3(weights='imagenet', include_top=False, input_shape=(299, 299, 3)) 
+for layer in inception_model.layers:
+layer.trainable = False 
+# Create the final model 
+x = inception_model.output 
+x = GlobalAveragePooling2D()(x) # Global average pooling for feature extraction 
+x = Dense(1024, activation='relu')(x) # Add a dense layer for learning new features 
+x = Dropout(0.5)(x) # Dropout for regularization 
+output = Dense(len(class_names), activation='softmax')(x) # Output layer with softmax for multi- 
+class 
+model = Model(inputs=inception_model.input, outputs=output) 
+# Compile the model 
+model.compile( 
+loss='categorical_crossentropy', # Use appropriate loss for your classes 
+optimizer='adam', 
+metrics=['accuracy'] 
+) 
+# Load images from directory and apply augmentations 
+train_generator = train_datagen.flow_from_directory( 
+train_dir, 
+target_size=(299, 299), # InceptionV3 expects 299x299 images 
+batch_size=32, 
+class_mode='categorical' # Changed to 'categorical' for multi-class 
+) 
+validation_generator = validation_datagen.flow_from_directory( 
+validation_dir, 
+target_size=(299, 299), 
+batch_size=32, 
+class_mode='categorical' # Changed to 'categorical' for multi-class 
+)

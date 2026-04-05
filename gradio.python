@@ -1,0 +1,55 @@
+# Install Gradio for creating the interface 
+!pip install gradio 
+# Install TensorFlow (required for loading and using the machine learning models) 
+!pip install tensorflow 
+# Install any other necessary libraries (optional, but useful for image processing) 
+!pip install numpy 
+!pip install pillow # For image handling (if needed) 
+# Step 1: Install the required libraries (run in terminal or Jupyter notebook) 
+# !pip install gradio 
+# !pip install tensorflow 
+import gradio as gr 
+import tensorflow as tf 
+import numpy as np 
+# Step 2: Load the pre-trained model (InceptionV3 model) 
+model = tf.keras.models.load_model('inceptionv3_transfer_model.h5') # Make sure to load the 
+correct model 
+# Step 3: Define the image classification function 
+def classify_image(image): 
+""" 
+Classifies the uploaded image using the loaded InceptionV3 model. 
+Args: - image: Input image (as a PIL image). 
+Returns: - predicted_label: The predicted class label for the input image. 
+""" 
+# Resize and preprocess the image (InceptionV3 requires 299x299 input size) 
+img = tf.image.resize(image, (299, 299)) # Resize image to match the input size of InceptionV3 
+img  =  tf.keras.applications.inception_v3.preprocess_input(img) 
+InceptionV3 model 
+img = np.expand_dims(img, axis=0) # Add batch dimension 
+# Perform prediction 
+prediction = model.predict(img) 
+#  Preprocess  image  for 
+predicted_class = np.argmax(prediction) # Get the index of the highest predicted probability
+# Define the class names (update based on your dataset) 
+class_names = ['caterpillar', 'leaflets', 'drying of leaflets', 'flaccidity', 'yellowing'] # Example 
+classes 
+# Get the predicted class label 
+predicted_label = class_names[predicted_class] 
+return predicted_label 
+# Step 4: Create the Gradio interface 
+iface = gr.Interface( 
+fn=classify_image, # The function that classifies the image 
+inputs=gr.Image(type="pil"), # Input type (image in PIL format) 
+outputs="text", # Output type (text label) 
+title="Plant Disease Classification", # Interface title 
+description="Upload an image of a plant leaf to classify its disease/pest.", # Interface description 
+) 
+# Step 5: Launch the Gradio interface 
+iface.launch() 
+history = model.fit( 
+train_generator, 
+steps_per_epoch=train_generator.samples // train_generator.batch_size, 
+epochs=10, 
+validation_data=validation_generator, 
+validation_steps=validation_generator.samples // validation_generator.batch_size 
+)
